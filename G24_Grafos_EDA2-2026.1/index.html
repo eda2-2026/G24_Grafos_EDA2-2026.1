@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Rota Estelar — Grafos em Ação</title>
+<style>
+  :root {
+    --bg: #0b0e1a;
+    --panel: #131830;
+    --border: #2a3158;
+    --accent: #5fd0ff;
+    --accent2: #ff6ec7;
+    --text: #dce3f5;
+    --visited: #ffd166;
+    --path: #5fffa0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(ellipse at top, #1a1f3d 0%, var(--bg) 70%);
+    color: var(--text);
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  header {
+    text-align: center;
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+  header p { margin: 4px 0 0; color: #8a93b8; font-size: 0.9em; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr) 260px;
+    gap: 12px;
+    padding: 12px;
+    align-items: start;
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    min-width: 0;
+  }
+  .panel h2 {
+    margin: 0 0 10px;
+    font-size: 1em;
+    color: var(--accent2);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+  }
+  label { display: block; margin: 10px 0 4px; font-size: 0.85em; color: #aab3d6; }
+  select, button {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #1c2347;
+    color: var(--text);
+    font-size: 0.9em;
+  }
+  button {
+    margin-top: 10px;
+    cursor: pointer;
+    background: linear-gradient(90deg, #2a3a8c, #4659c9);
+    border: none;
+    font-weight: bold;
+    transition: transform 0.1s;
+  }
+  button:hover { transform: translateY(-1px); }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  button.secondary { background: #2a2f4f; }
+
+  #mapWrap { display: flex; justify-content: center; min-width: 0; }
+  svg { background: #0a0d1c; border-radius: 10px; border: 1px solid var(--border); width: 100%; height: auto; }
+
+  .edge { stroke: #3a4170; stroke-width: 2; }
+  .edge-label { fill: #6b73a0; font-size: 11px; }
+  .edge.active { stroke: var(--accent); stroke-width: 3; }
+  .edge.path { stroke: var(--path); stroke-width: 4; }
+  .edge.skip { stroke: #ff5d5d; stroke-dasharray: 4; }
+
+  .node circle {
+    fill: #1c2347;
+    stroke: var(--accent);
+    stroke-width: 2;
+    transition: fill 0.3s, stroke 0.3s;
+  }
+  .node.visited circle { fill: var(--visited); stroke: var(--visited); }
+  .node.path circle { fill: var(--path); stroke: var(--path); }
+  .node text {
+    fill: var(--text);
+    font-size: 11px;
+    text-anchor: middle;
+  }
+
+  #log {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 480px;
+    overflow-y: auto;
+    font-size: 0.82em;
+  }
+  #log li {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    color: #b9c2e8;
+  }
+  #log li:last-child { color: var(--accent); font-weight: bold; }
+
+  .result {
+    margin-top: 10px;
+    font-size: 0.85em;
+    color: var(--path);
+    min-height: 1.2em;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚀 ROTA ESTELAR</h1>
+  <p>Grafos em Ação — EDA2 2026.1 — BFS · DFS · Dijkstra · Kruskal (MST)</p>
+</header>
+
+<div class="layout">
+
+  <div class="panel">
+    <h2>Painel de Comando</h2>
+
+    <label for="algo">Algoritmo</label>
+    <select id="algo">
+      <option value="bfs">Exploração BFS</option>
+      <option value="dfs">Exploração DFS</option>
+      <option value="dijkstra">Rota mais econômica (Dijkstra)</option>
+      <option value="kruskal">Rede mínima de hyperlanes (Kruskal)</option>
+    </select>
+
+    <label for="origem">Sistema de partida</label>
+    <select id="origem"></select>
+
+    <label for="destino" id="lblDestino">Sistema de destino</label>
+    <select id="destino"></select>
+
+    <button id="run">▶ Executar</button>
+    <button id="reset" class="secondary">↺ Reiniciar Mapa</button>
+
+    <div class="result" id="result"></div>
+  </div>
+
+  <div class="panel" id="mapWrap">
+    <svg id="map" width="800" height="520" viewBox="0 0 800 520"></svg>
+  </div>
+
+  <div class="panel">
+    <h2>Log de Operações</h2>
+    <ul id="log"></ul>
+  </div>
+
+</div>
+
+<script src="graph.js"></script>
+<script>
+const svg = document.getElementById("map");
+const logEl = document.getElementById("log");
+const resultEl = document.getElementById("result");
+const origemSel = document.getElementById("origem");
+const destinoSel = document.getElementById("destino");
+const lblDestino = document.getElementById("lblDestino");
+const algoSel = document.getElementById("algo");
+const runBtn = document.getElementById("run");
+
+function populateSelects() {
+  for (const sel of [origemSel, destinoSel]) {
+    sel.innerHTML = "";
+    NODES.forEach(n => {
+      const opt = document.createElement("option");
+      opt.value = n.id;
+      opt.textContent = n.name;
+      sel.appendChild(opt);
+    });
+  }
+  destinoSel.value = NODES[NODES.length - 1].id;
+}
+
+function drawGraph() {
+  svg.innerHTML = "";
+
+  for (const [a, b, w] of EDGES) {
+    const na = NODES[a], nb = NODES[b];
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", na.x); line.setAttribute("y1", na.y);
+    line.setAttribute("x2", nb.x); line.setAttribute("y2", nb.y);
+    line.setAttribute("class", "edge");
+    line.setAttribute("id", `edge-${edgeKey(a, b)}`);
+    svg.appendChild(line);
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", (na.x + nb.x) / 2);
+    label.setAttribute("y", (na.y + nb.y) / 2 - 4);
+    label.setAttribute("class", "edge-label");
+    label.textContent = w;
+    svg.appendChild(label);
+  }
+
+  for (const n of NODES) {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("class", "node");
+    g.setAttribute("id", `node-${n.id}`);
+
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", n.x); circle.setAttribute("cy", n.y); circle.setAttribute("r", 22);
+    g.appendChild(circle);
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", n.x); text.setAttribute("y", n.y + 36);
+    text.textContent = n.name;
+    g.appendChild(text);
+
+    svg.appendChild(g);
+  }
+}
+
+function resetVisualState() {
+  document.querySelectorAll(".node").forEach(n => n.classList.remove("visited", "path"));
+  document.querySelectorAll(".edge").forEach(e => e.classList.remove("active", "path", "skip"));
+  logEl.innerHTML = "";
+  resultEl.textContent = "";
+}
+
+function appendLog(text) {
+  const li = document.createElement("li");
+  li.textContent = text;
+  logEl.appendChild(li);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function animateSteps(steps, onDone) {
+  let i = 0;
+  runBtn.disabled = true;
+  function next() {
+    if (i >= steps.length) { runBtn.disabled = false; if (onDone) onDone(); return; }
+    const step = steps[i++];
+    appendLog(step.log);
+
+    if (step.type === "visit") {
+      document.getElementById(`node-${step.node}`).classList.add("visited");
+    } else if (step.type === "edge") {
+      document.getElementById(`edge-${edgeKey(step.a, step.b)}`).classList.add("active");
+    } else if (step.type === "path") {
+      document.getElementById(`edge-${edgeKey(step.a, step.b)}`).classList.add("path");
+      document.getElementById(`node-${step.a}`).classList.add("path");
+      document.getElementById(`node-${step.b}`).classList.add("path");
+    } else if (step.type === "skip") {
+      document.getElementById(`edge-${edgeKey(step.a, step.b)}`).classList.add("skip");
+    }
+    setTimeout(next, 550);
+  }
+  next();
+}
+
+function updateControlsVisibility() {
+  const algo = algoSel.value;
+  const needsDestino = algo === "dijkstra";
+  const needsOrigem = algo === "bfs" || algo === "dfs" || algo === "dijkstra";
+  destinoSel.style.display = needsDestino ? "block" : "none";
+  lblDestino.style.display = needsDestino ? "block" : "none";
+  origemSel.style.display = needsOrigem ? "block" : "none";
+  origemSel.previousElementSibling.style.display = needsOrigem ? "block" : "none";
+}
+
+algoSel.addEventListener("change", updateControlsVisibility);
+
+runBtn.addEventListener("click", () => {
+  resetVisualState();
+  const algo = algoSel.value;
+  const origem = parseInt(origemSel.value, 10);
+  const destino = parseInt(destinoSel.value, 10);
+
+  if (algo === "bfs") {
+    animateSteps(runBFS(origem));
+  } else if (algo === "dfs") {
+    animateSteps(runDFS(origem));
+  } else if (algo === "dijkstra") {
+    const { steps, dist } = runDijkstra(origem, destino);
+    animateSteps(steps, () => {
+      resultEl.textContent = dist === null
+        ? "Sem rota possível."
+        : `Custo mínimo: ${dist} unidades de combustível`;
+    });
+  } else if (algo === "kruskal") {
+    animateSteps(runKruskal());
+  }
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  drawGraph();
+  resetVisualState();
+});
+
+populateSelects();
+drawGraph();
+updateControlsVisibility();
+</script>
+
+</body>
+</html>
