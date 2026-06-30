@@ -191,6 +191,34 @@ G24_Grafos_EDA2-2026.1/
 
 ---
 
+## 📸 Screenshots
+
+### Mapa Estelar — estado inicial
+
+<p align="center">
+  <img src="docs/screenshots/web_mapa.png" alt="Mapa estelar inicial" width="80%"/>
+</p>
+
+### BFS — Exploração em Largura a partir de Sol
+
+<p align="center">
+  <img src="docs/screenshots/web_bfs.png" alt="BFS a partir de Sol — todos os sistemas visitados" width="80%"/>
+</p>
+
+### Dijkstra — Rota mais econômica (Sol → Andromeda Gate)
+
+<p align="center">
+  <img src="docs/screenshots/web_dijkstra.png" alt="Dijkstra destacando rota de custo 24" width="80%"/>
+</p>
+
+### Kruskal — Rede mínima de Hyperlanes (MST, custo total 34)
+
+<p align="center">
+  <img src="docs/screenshots/web_kruskal.png" alt="Kruskal — MST em verde, aresta descartada em vermelho" width="80%"/>
+</p>
+
+---
+
 ## 🎬 Apresentação
 
 <div align="center">
